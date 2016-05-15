@@ -33,10 +33,10 @@ scene.add(light);
    Texture Loading
   ===================*/
 var loader = new THREE.TextureLoader();
-var map = loader.load("assets/modified/map.jpg");
-var bump_map = loader.load("assets/modified/bump.png");
-var specular_map = loader.load("assets/modified/specular.png");
-var star_field = loader.load("assets/modified/star_field.png");
+var map = loader.load("assets/earth/map.jpg");
+var bump_map = loader.load("assets/earth/bump.png");
+var specular_map = loader.load("assets/earth/specular.png");
+var star_field = loader.load("assets/earth/star_field.png");
 
 /*===================
    Earth
