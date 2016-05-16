@@ -63,8 +63,8 @@ currentsVideo.loop = true;
 currentsVideo.play();
 
 var currentsCanvas = document.createElement('canvas');
-currentsCanvas.width = 4096;
-currentsCanvas.height = 2048;
+currentsCanvas.width = 2048; //4096;
+currentsCanvas.height = 1024; //2048;
 
 var currentsContext = currentsCanvas.getContext('2d');
 
@@ -157,15 +157,14 @@ function render() {
 
 	// Rotate the earth automatically
 	earth.rotation.y += 0.0005;
-	//clouds.rotation.y += 0.0005;
 
 	controls.update();
 
 	// Update video
-	//currentsContext.drawImage(currentsVideo, 0, 0);
-	//currentsContext.globalCompositeOperation = "destination-out";
-	//currentsContext.drawImage(mask, 0, 0);
-	//currentsContext.globalCompositeOperation = "source-over";
+	currentsContext.drawImage(currentsVideo, 0, 0, currentsCanvas.width, currentsCanvas.height);
+	currentsContext.globalCompositeOperation = "destination-out";
+	currentsContext.drawImage(mask, 0, 0, currentsCanvas.width, currentsCanvas.height);
+	currentsContext.globalCompositeOperation = "source-over";
 	if (currentsTexture) {
 		currentsTexture.needsUpdate = true;
 	}
