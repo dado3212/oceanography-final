@@ -58,25 +58,9 @@ var earth = new THREE.Mesh(earthGeometry, earthMaterial);
 
 var currentsVideo = document.createElement('video');
 
-var currentsIsDownloading = true;
-var currentsDownloader = new XMLHttpRequest(); // This takes approximately 2 mins, 15 seconds
-currentsDownloader.addEventListener("progress", function updateProgress(e) {
-	var percentComplete = e.loaded / e.total * 100;
-	console.log(Math.round(percentComplete));
-});
-
-currentsDownloader.onload = function() {
-	currentsIsDownloading = false;
-    currentsVideo.src = URL.createObjectURL(currentsDownloader.response);
-    currentsVideo.loop = true;
-    currentsVideo.play();
-
-    currentsMaterial.opacity = 0.5;
-};
-currentsDownloader.open("GET", "assets/videos/currents.mp4");
-
-currentsDownloader.responseType = "blob";
-currentsDownloader.send();
+currentsVideo.src = "assets/videos/currents.mp4";
+currentsVideo.loop = true;
+currentsVideo.play();
 
 var currentsCanvas = document.createElement('canvas');
 currentsCanvas.width = 4096;
@@ -97,7 +81,7 @@ var currentsGeometry = new THREE.SphereGeometry(0.502, 60, 60);
 var currentsMaterial = new THREE.MeshPhongMaterial({
   map     	  : currentsTexture,
   side        : THREE.DoubleSide,
-  opacity     : 0,
+  opacity     : 0.5,
   transparent : true,
   depthWrite  : false
 });
@@ -129,31 +113,37 @@ controls.minDistance = 0.61;
 controls.maxDistance = 2.5;
 
 /*===================
+   Statistics Code
+  ===================*/
+var stats = new Stats();
+stats.showPanel(0);
+
+/*===================
    GUI Controls
   ===================*/
 // Set up GUI controls
 var guiController = new function() {
 	this.currents = true;
-	this.currentsOpacity = 0;
+	this.currentsOpacity = 0.5;
 }();
 
 window.onload = function() {
 	// Append renderer element
 	document.body.appendChild(renderer.domElement);
 
+	// Append stats element
+	document.body.appendChild(stats.dom);
+
 	var gui = new dat.GUI();
 	var currentsFolder = gui.addFolder('Currents');
 	currentsFolder.add(guiController, 'currents', false).onChange(function() {
-		if (!currentsIsDownloading) {
-			if (guiController.currents)
-				currentsMaterial.opacity = guiController.currentsOpacity;
-			else
-				currentsMaterial.opacity = 0;
-		}
+		if (guiController.currents)
+			currentsMaterial.opacity = guiController.currentsOpacity;
+		else
+			currentsMaterial.opacity = 0;
 	});
 	currentsFolder.add(guiController, 'currentsOpacity', 0.0, 0.6).onChange(function() {
-		if (!currentsIsDownloading)
-			currentsMaterial.opacity = guiController.currentsOpacity;
+		currentsMaterial.opacity = guiController.currentsOpacity;
 	});
 };
 
@@ -161,6 +151,7 @@ window.onload = function() {
    Render Code
   ===================*/
 function render() {
+	stats.begin();
 	// Request a new frame
 	requestAnimationFrame(render);
 
@@ -170,18 +161,18 @@ function render() {
 
 	controls.update();
 
-	// Update video (if you can, go for it)
-	if (currentsVideo.readyState === currentsVideo.HAVE_ENOUGH_DATA) {
-		currentsContext.drawImage(currentsVideo, 0, 0);
-		currentsContext.globalCompositeOperation = "destination-out";
-		currentsContext.drawImage(mask, 0, 0);
-		currentsContext.globalCompositeOperation = "source-over";
-		if (currentsTexture) {
-			currentsTexture.needsUpdate = true;
-		}
+	// Update video
+	//currentsContext.drawImage(currentsVideo, 0, 0);
+	//currentsContext.globalCompositeOperation = "destination-out";
+	//currentsContext.drawImage(mask, 0, 0);
+	//currentsContext.globalCompositeOperation = "source-over";
+	if (currentsTexture) {
+		currentsTexture.needsUpdate = true;
 	}
 
 	renderer.render(scene, camera);
+
+	stats.end();
 };
 
 render();
