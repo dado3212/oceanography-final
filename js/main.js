@@ -53,40 +53,24 @@ var earthMaterial = new THREE.MeshPhongMaterial({
 var earth = new THREE.Mesh(earthGeometry, earthMaterial);
 
 /*===================
-   Video Currents Rendering
+   Video Overlay Rendering
   ===================*/
+var overlayTexture = new THREE.Texture(null); // Instantiate
+overlayTexture.minFilter = THREE.LinearFilter;
+overlayTexture.magFilter = THREE.LinearFilter;
+overlayTexture.wrapS = THREE.RepeatWrapping;
+overlayTexture.offset.x = 0.5;
 
-var currentsVideo = document.createElement('video');
-
-currentsVideo.src = "assets/videos/currents.mp4";
-currentsVideo.loop = true;
-currentsVideo.play();
-
-var currentsCanvas = document.createElement('canvas');
-currentsCanvas.width = 2048; //4096;
-currentsCanvas.height = 1024; //2048;
-
-var currentsContext = currentsCanvas.getContext('2d');
-
-var currentsTexture = new THREE.Texture(currentsCanvas);
-currentsTexture.minFilter = THREE.LinearFilter;
-currentsTexture.magFilter = THREE.LinearFilter;
-currentsTexture.wrapS = THREE.RepeatWrapping;
-currentsTexture.offset.x = 0.5;
-
-var mask = new Image(currentsCanvas.width, currentsCanvas.height);
-mask.src = "assets/videos/mask.png";
-
-var currentsGeometry = new THREE.SphereGeometry(0.502, 60, 60);
-var currentsMaterial = new THREE.MeshPhongMaterial({
-  map     	  : currentsTexture,
+var overlayGeometry = new THREE.SphereGeometry(0.502, 60, 60);
+var overlayMaterial = new THREE.MeshPhongMaterial({
+  map     	  : overlayTexture,
   side        : THREE.DoubleSide,
   opacity     : 0.5,
   transparent : true,
   depthWrite  : false
 });
-var currentsMesh = new THREE.Mesh(currentsGeometry, currentsMaterial);
-earth.add(currentsMesh);
+var overlayMesh = new THREE.Mesh(overlayGeometry, overlayMaterial);
+earth.add(overlayMesh);
 
 scene.add(earth);
 
@@ -134,6 +118,11 @@ window.onload = function() {
 	// Append stats element
 	document.body.appendChild(stats.dom);
 
+	// Begin extracting the frames
+	var mask = new Image();
+	mask.src = "assets/videos/mask.png";
+	extractFrames("assets/videos/currents.mp4", null, "currentsFrames");
+
 	var gui = new dat.GUI();
 	var currentsFolder = gui.addFolder('Currents');
 	currentsFolder.add(guiController, 'currents', false).onChange(function() {
@@ -148,13 +137,73 @@ window.onload = function() {
 };
 
 /*===================
-   Render Code
+   Overlay Options
   ===================*/
+var overlayFrames = {
+	currentsFrames: []
+};
 
+/*===================
+   Extract Frames from Video
+  ===================*/
+function extractFrames(src, mask, frameType) {
+	var i = 0;
+
+	var video = document.createElement('video');
+	var canvasFrames = [];
+	var width = 0;
+	var height = 0;
+
+	console.log("Extracting frames.");
+
+	video.addEventListener('loadedmetadata', function() {
+		width = this.videoWidth;
+		height = this.videoHeight;
+
+		video.currentTime = i;
+
+		console.log(video.duration);
+	}, false);
+
+	video.src = src;
+
+	video.addEventListener('seeked', function() {
+		video.play();
+		// Generate canvas drawing
+		var tempCanvas = document.createElement('canvas');
+		tempCanvas.width = width;
+		tempCanvas.height = height;
+		var tempCTX = tempCanvas.getContext('2d');
+		tempCTX.drawImage(this, 0, 0);
+
+		// Generate THREE.js texture from canvas
+		var tempTexture = new THREE.Texture(tempCanvas);
+		tempTexture.minFilter = THREE.LinearFilter;
+		tempTexture.magFilter = THREE.LinearFilter;
+		tempTexture.wrapS = THREE.RepeatWrapping;
+		tempTexture.offset.x = 0.5;
+		tempTexture.needsUpdate = true;
+
+		// Add pre-rendered texture to array
+		canvasFrames.push(tempTexture);
+
+		i += 1;
+		console.log(i);
+		if (i <= this.duration) {
+			video.currentTime = i;
+		} else {
+			overlayFrames[frameType] = canvasFrames;
+			console.log("Finished");
+		}
+	}, false);
+}
 
 /*===================
    Render Code
   ===================*/
+var frame = 0;
+var firstRun = true;
+
 function render() {
 	stats.begin();
 	// Request a new frame
@@ -162,18 +211,24 @@ function render() {
 
 	// Rotate the earth automatically
 	earth.rotation.y += 0.0005;
-	//clouds.rotation.y += 0.0005;
 
 	controls.update();
 
+	// Update overlay
+	if (overlayFrames["currentsFrames"].length > 0) {
+		// Update the overlay frame
+		overlayMaterial.map = overlayFrames["currentsFrames"][frame];
+		frame = (frame + 1) % overlayFrames["currentsFrames"].length;
+	}
+
 	// Update video
-	currentsContext.drawImage(currentsVideo, 0, 0, currentsCanvas.width, currentsCanvas.height);
+	/*currentsContext.drawImage(currentsVideo, 0, 0, currentsCanvas.width, currentsCanvas.height);
 	currentsContext.globalCompositeOperation = "destination-out";
 	currentsContext.drawImage(mask, 0, 0, currentsCanvas.width, currentsCanvas.height);
 	currentsContext.globalCompositeOperation = "source-over";
 	if (currentsTexture) {
 		currentsTexture.needsUpdate = true;
-	}
+	}*/
 
 	renderer.render(scene, camera);
 
