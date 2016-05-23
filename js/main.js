@@ -56,10 +56,6 @@ var earth = new THREE.Mesh(earthGeometry, earthMaterial);
    Video Overlay Rendering
   ===================*/
 var overlayTexture = new THREE.Texture(null); // Instantiate
-overlayTexture.minFilter = THREE.LinearFilter;
-overlayTexture.magFilter = THREE.LinearFilter;
-overlayTexture.wrapS = THREE.RepeatWrapping;
-overlayTexture.offset.x = 0.5;
 
 var overlayGeometry = new THREE.SphereGeometry(0.502, 60, 60);
 var overlayMaterial = new THREE.MeshPhongMaterial({
@@ -71,6 +67,18 @@ var overlayMaterial = new THREE.MeshPhongMaterial({
 });
 var overlayMesh = new THREE.Mesh(overlayGeometry, overlayMaterial);
 earth.add(overlayMesh);
+
+// Hack to ensure that all textures are pre-updated before being inserted in the frames array
+var loaderGeometry = new THREE.SphereGeometry(0.502, 60, 60);
+var loaderMaterial = new THREE.MeshPhongMaterial({
+  map     	  : overlayTexture,
+  side        : THREE.DoubleSide,
+  opacity     : 0.0,
+  transparent : true,
+  depthWrite  : false
+});
+var loaderMesh = new THREE.Mesh(loaderGeometry, loaderMaterial);
+scene.add(loaderMesh);
 
 scene.add(earth);
 
@@ -121,7 +129,7 @@ window.onload = function() {
 	// Begin extracting the frames
 	var mask = new Image();
 	mask.src = "assets/videos/mask.png";
-	extractFrames("assets/videos/currents.mp4", null, "currentsFrames");
+	extractFrames("assets/videos/currents.mp4", mask, "currentsFrames");
 
 	var gui = new dat.GUI();
 	var currentsFolder = gui.addFolder('Currents');
@@ -146,10 +154,11 @@ var overlayFrames = {
 /*===================
    Extract Frames from Video
   ===================*/
+var video;
 function extractFrames(src, mask, frameType) {
 	var i = 0;
 
-	var video = document.createElement('video');
+ video = document.createElement('video');
 	var canvasFrames = [];
 	var width = 0;
 	var height = 0;
@@ -168,13 +177,18 @@ function extractFrames(src, mask, frameType) {
 	video.src = src;
 
 	video.addEventListener('seeked', function() {
-		video.play();
 		// Generate canvas drawing
 		var tempCanvas = document.createElement('canvas');
 		tempCanvas.width = width;
 		tempCanvas.height = height;
 		var tempCTX = tempCanvas.getContext('2d');
 		tempCTX.drawImage(this, 0, 0);
+		tempCTX.drawImage(this, 0, 0);
+		if (mask != null) {
+			tempCTX.globalCompositeOperation = "destination-out";
+			tempCTX.drawImage(mask, 0, 0);
+			tempCTX.globalCompositeOperation = "source-over";
+		}
 
 		// Generate THREE.js texture from canvas
 		var tempTexture = new THREE.Texture(tempCanvas);
@@ -182,7 +196,10 @@ function extractFrames(src, mask, frameType) {
 		tempTexture.magFilter = THREE.LinearFilter;
 		tempTexture.wrapS = THREE.RepeatWrapping;
 		tempTexture.offset.x = 0.5;
+
+		// Pre-updates texture using secondary (hidden) material
 		tempTexture.needsUpdate = true;
+		loaderMaterial.map = tempTexture;
 
 		// Add pre-rendered texture to array
 		canvasFrames.push(tempTexture);
@@ -202,9 +219,12 @@ function extractFrames(src, mask, frameType) {
    Render Code
   ===================*/
 var frame = 0;
+var rendered = 0;
 var firstRun = true;
+var frameUpdateSpeed = 3;
 
 function render() {
+	rendered = (rendered + 1) % frameUpdateSpeed;
 	stats.begin();
 	// Request a new frame
 	requestAnimationFrame(render);
@@ -215,20 +235,11 @@ function render() {
 	controls.update();
 
 	// Update overlay
-	if (overlayFrames["currentsFrames"].length > 0) {
+	if (overlayFrames["currentsFrames"].length > 0 && rendered == 0) {
 		// Update the overlay frame
 		overlayMaterial.map = overlayFrames["currentsFrames"][frame];
 		frame = (frame + 1) % overlayFrames["currentsFrames"].length;
 	}
-
-	// Update video
-	/*currentsContext.drawImage(currentsVideo, 0, 0, currentsCanvas.width, currentsCanvas.height);
-	currentsContext.globalCompositeOperation = "destination-out";
-	currentsContext.drawImage(mask, 0, 0, currentsCanvas.width, currentsCanvas.height);
-	currentsContext.globalCompositeOperation = "source-over";
-	if (currentsTexture) {
-		currentsTexture.needsUpdate = true;
-	}*/
 
 	renderer.render(scene, camera);
 
