@@ -150,6 +150,11 @@ window.onload = function() {
 /*===================
    Render Code
   ===================*/
+
+
+/*===================
+   Render Code
+  ===================*/
 function render() {
 	stats.begin();
 	// Request a new frame
@@ -157,6 +162,7 @@ function render() {
 
 	// Rotate the earth automatically
 	earth.rotation.y += 0.0005;
+	//clouds.rotation.y += 0.0005;
 
 	controls.update();
 
