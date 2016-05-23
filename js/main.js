@@ -115,8 +115,11 @@ stats.showPanel(0);
   ===================*/
 // Set up GUI controls
 var guiController = new function() {
-	this.currents = true;
+	this.currents = false;
 	this.currentsOpacity = 0.5;
+
+	this.surfaceflow = true;
+	this.surfaceflowOpacity = 0.5;
 }();
 
 window.onload = function() {
@@ -126,39 +129,80 @@ window.onload = function() {
 	// Append stats element
 	document.body.appendChild(stats.dom);
 
-	// Begin extracting the frames
-	var mask = new Image();
-	mask.src = "assets/videos/mask.png";
-	extractFrames("assets/videos/currents.mp4", mask, "currentsFrames");
+	// Extract frames for currents
+	var currentsMask = new Image();
+	currentsMask.src = "assets/videos/currentsmask.png";
+
+	// Extract frames for surface flows
+	var surfaceflowmask = new Image();
+	surfaceflowmask.src = "assets/videos/surfaceflowmask.png";
+
+	// Hacked together sequential loading using callbacks
+	extractFrames("assets/videos/currents.mp4", currentsMask, "currentsFrames", 1, function() {
+		extractFrames("assets/videos/surfaceflow.mp4", surfaceflowmask, "surfaceflowFrames", 1);
+	}, [2048, 1024]);
 
 	var gui = new dat.GUI();
+
+	// Add all controls for currents overlay
 	var currentsFolder = gui.addFolder('Currents');
 	currentsFolder.add(guiController, 'currents', false).onChange(function() {
-		if (guiController.currents)
-			currentsMaterial.opacity = guiController.currentsOpacity;
-		else
-			currentsMaterial.opacity = 0;
-	});
+		// Set the active overlay, update current opacity, turn off others (in GUI)
+		if (guiController.currents) {
+			activeOverlay = "currentsFrames";
+			overlayMaterial.opacity = guiController.currentsOpacity;
+
+			guiController.surfaceflow = false;
+		} else {
+			activeOverlay = "";
+		}
+	}).listen();
 	currentsFolder.add(guiController, 'currentsOpacity', 0.0, 0.6).onChange(function() {
-		currentsMaterial.opacity = guiController.currentsOpacity;
+		overlayMaterial.opacity = guiController.currentsOpacity;
 	});
+
+	// Add all controls for surface flow overlay
+	var surfaceflowFolder = gui.addFolder('Surface Flow');
+	surfaceflowFolder.add(guiController, 'surfaceflow', false).onChange(function() {
+		// Set the active overlay, update current opacity, turn off others (in GUI)
+		if (guiController.surfaceflow) {
+			activeOverlay = "surfaceflowFrames";
+			overlayMaterial.opacity = guiController.surfaceflowOpacity;
+
+			guiController.currents = false;
+		} else {
+			activeOverlay = "";
+		}
+	}).listen();
+	surfaceflowFolder.add(guiController, 'surfaceflowOpacity', 0.0, 0.6).onChange(function() {
+		overlayMaterial.opacity = guiController.surfaceflowOpacity;
+	});
+
+	currentsFolder.open();
+	surfaceflowFolder.open();
 };
 
 /*===================
    Overlay Options
   ===================*/
 var overlayFrames = {
-	currentsFrames: []
+	currentsFrames: [],
+	surfaceflowFrames: []
 };
+
+var activeOverlay = "surfaceflowFrames";
 
 /*===================
    Extract Frames from Video
   ===================*/
 var video;
-function extractFrames(src, mask, frameType) {
+function extractFrames(src, mask, frameType, fps, callback, resolution) {
+	// Handle default 'fps'
+	fps = fps || 1;
+
 	var i = 0;
 
- video = document.createElement('video');
+	video = document.createElement('video');
 	var canvasFrames = [];
 	var width = 0;
 	var height = 0;
@@ -166,12 +210,17 @@ function extractFrames(src, mask, frameType) {
 	console.log("Extracting frames.");
 
 	video.addEventListener('loadedmetadata', function() {
-		width = this.videoWidth;
-		height = this.videoHeight;
+		if (resolution == null) {
+			width = this.videoWidth;
+			height = this.videoHeight;
+		} else {
+			width = resolution[0];
+			height = resolution[1];
+		}
 
 		video.currentTime = i;
 
-		console.log(video.duration);
+		console.log(frameType + ": " + video.duration);
 	}, false);
 
 	video.src = src;
@@ -182,11 +231,12 @@ function extractFrames(src, mask, frameType) {
 		tempCanvas.width = width;
 		tempCanvas.height = height;
 		var tempCTX = tempCanvas.getContext('2d');
-		tempCTX.drawImage(this, 0, 0);
-		tempCTX.drawImage(this, 0, 0);
+		console.log(width, height); // for some reason, the first frame is rendering empty.
+		tempCTX.drawImage(this, 0, 0, width, height);
+		tempCTX.drawImage(this, 0, 0, width, height);
 		if (mask != null) {
 			tempCTX.globalCompositeOperation = "destination-out";
-			tempCTX.drawImage(mask, 0, 0);
+			tempCTX.drawImage(mask, 0, 0, width, height);
 			tempCTX.globalCompositeOperation = "source-over";
 		}
 
@@ -194,8 +244,10 @@ function extractFrames(src, mask, frameType) {
 		var tempTexture = new THREE.Texture(tempCanvas);
 		tempTexture.minFilter = THREE.LinearFilter;
 		tempTexture.magFilter = THREE.LinearFilter;
-		tempTexture.wrapS = THREE.RepeatWrapping;
-		tempTexture.offset.x = 0.5;
+		if (frameType == "currentsFrames") { // Handle wrapping for currentsFrames
+			tempTexture.wrapS = THREE.RepeatWrapping;
+			tempTexture.offset.x = 0.5;
+		}
 
 		// Pre-updates texture using secondary (hidden) material
 		tempTexture.needsUpdate = true;
@@ -204,13 +256,15 @@ function extractFrames(src, mask, frameType) {
 		// Add pre-rendered texture to array
 		canvasFrames.push(tempTexture);
 
-		i += 1;
-		console.log(i);
+		i += 1/fps;
+		console.log(frameType + ": " + i);
 		if (i <= this.duration) {
 			video.currentTime = i;
 		} else {
 			overlayFrames[frameType] = canvasFrames;
 			console.log("Finished");
+			if (callback != null)
+				callback();
 		}
 	}, false);
 }
@@ -220,8 +274,7 @@ function extractFrames(src, mask, frameType) {
   ===================*/
 var frame = 0;
 var rendered = 0;
-var firstRun = true;
-var frameUpdateSpeed = 3;
+var frameUpdateSpeed = 6; // Slow down rendering of overlay
 
 function render() {
 	rendered = (rendered + 1) % frameUpdateSpeed;
@@ -235,10 +288,10 @@ function render() {
 	controls.update();
 
 	// Update overlay
-	if (overlayFrames["currentsFrames"].length > 0 && rendered == 0) {
+	if (activeOverlay != "" && overlayFrames[activeOverlay].length > 0 && rendered == 0) {
 		// Update the overlay frame
-		overlayMaterial.map = overlayFrames["currentsFrames"][frame];
-		frame = (frame + 1) % overlayFrames["currentsFrames"].length;
+		overlayMaterial.map = overlayFrames[activeOverlay][frame];
+		frame = (frame + 1) % overlayFrames[activeOverlay].length;
 	}
 
 	renderer.render(scene, camera);
