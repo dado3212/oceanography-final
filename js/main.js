@@ -115,11 +115,10 @@ stats.showPanel(0);
   ===================*/
 // Set up GUI controls
 var guiController = new function() {
-	this.currents = false;
-	this.currentsOpacity = 0.5;
+	this.overlay = "currents";
+	this.overlayOpacity = 0.5;
 
-	this.surfaceflow = true;
-	this.surfaceflowOpacity = 0.5;
+	this.rotateEarth = true;
 }();
 
 window.onload = function() {
@@ -139,47 +138,25 @@ window.onload = function() {
 
 	// Hacked together sequential loading using callbacks
 	extractFrames("assets/videos/currents.mp4", currentsMask, "currentsFrames", 1, function() {
-		extractFrames("assets/videos/surfaceflow.mp4", surfaceflowmask, "surfaceflowFrames", 1);
+		extractFrames("assets/videos/surfaceflow.mp4", surfaceflowmask, "surfaceflowFrames", 1, function() {
+			extractFrames("assets/videos/salinity.mp4", null, "salinityFrames", 1);
+		});
 	}, [2048, 1024]);
 
 	var gui = new dat.GUI();
 
-	// Add all controls for currents overlay
-	var currentsFolder = gui.addFolder('Currents');
-	currentsFolder.add(guiController, 'currents', false).onChange(function() {
-		// Set the active overlay, update current opacity, turn off others (in GUI)
-		if (guiController.currents) {
-			activeOverlay = "currentsFrames";
-			overlayMaterial.opacity = guiController.currentsOpacity;
-
-			guiController.surfaceflow = false;
-		} else {
-			activeOverlay = "";
-		}
-	}).listen();
-	currentsFolder.add(guiController, 'currentsOpacity', 0.0, 0.6).onChange(function() {
-		overlayMaterial.opacity = guiController.currentsOpacity;
+	// Add all options for overlay
+	gui.add(guiController, 'overlay', ['currents', 'surfaceflow', 'salinity']).onChange(function() {
+		activeOverlay = guiController.overlay + "Frames";
 	});
 
-	// Add all controls for surface flow overlay
-	var surfaceflowFolder = gui.addFolder('Surface Flow');
-	surfaceflowFolder.add(guiController, 'surfaceflow', false).onChange(function() {
-		// Set the active overlay, update current opacity, turn off others (in GUI)
-		if (guiController.surfaceflow) {
-			activeOverlay = "surfaceflowFrames";
-			overlayMaterial.opacity = guiController.surfaceflowOpacity;
-
-			guiController.currents = false;
-		} else {
-			activeOverlay = "";
-		}
-	}).listen();
-	surfaceflowFolder.add(guiController, 'surfaceflowOpacity', 0.0, 0.6).onChange(function() {
-		overlayMaterial.opacity = guiController.surfaceflowOpacity;
+	gui.add(guiController, 'overlayOpacity', 0.0, 0.6).onChange(function() {
+		overlayMaterial.opacity = guiController.overlayOpacity;
 	});
 
-	currentsFolder.open();
-	surfaceflowFolder.open();
+	gui.add(guiController, 'rotateEarth').onChange(function() {
+		rotating = guiController.rotateEarth;
+	});
 };
 
 /*===================
@@ -187,10 +164,12 @@ window.onload = function() {
   ===================*/
 var overlayFrames = {
 	currentsFrames: [],
-	surfaceflowFrames: []
+	surfaceflowFrames: [],
+	salinityFrames: []
 };
 
-var activeOverlay = "surfaceflowFrames";
+var activeOverlay = "currentsFrames";
+var rotating = true;
 
 /*===================
    Extract Frames from Video
@@ -231,7 +210,6 @@ function extractFrames(src, mask, frameType, fps, callback, resolution) {
 		tempCanvas.width = width;
 		tempCanvas.height = height;
 		var tempCTX = tempCanvas.getContext('2d');
-		console.log(width, height); // for some reason, the first frame is rendering empty.
 		tempCTX.drawImage(this, 0, 0, width, height);
 		tempCTX.drawImage(this, 0, 0, width, height);
 		if (mask != null) {
@@ -283,7 +261,8 @@ function render() {
 	requestAnimationFrame(render);
 
 	// Rotate the earth automatically
-	earth.rotation.y += 0.0005;
+	if (rotating)
+		earth.rotation.y += 0.0005;
 
 	controls.update();
 
