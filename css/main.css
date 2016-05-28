@@ -7,3 +7,61 @@ canvas {
 	width: 100%;
 	height: 100%;
 }
+
+#progressModal {
+	width: 500px;
+	min-height: 45px;
+
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+
+	padding: 3px;
+	border-radius: 5px;
+
+	background-color: #333;
+	color: white;
+	font-family: sans-serif;
+	font-weight: bold;
+}
+
+#progressModal #name {
+	display: block;
+
+	text-align: center;
+	text-transform: capitalize;
+}
+
+.progressBar {
+	height: 30px;
+	position: relative;
+
+	background-color: #333;
+	border: 3px solid #333;
+	text-align: center;
+}
+
+.progressBar #label:after {
+	content: attr(data-perc);
+
+	font-size: 1.5em;
+	font-weight: bold;
+
+	display: block;
+	position: absolute;
+	width: 100%;
+	z-index: 10;
+}
+
+.progressBar #bar {
+	background-color: #2FA1D6;
+
+	width: 0%;
+	height: 100%;
+	display: block;
+	position: absolute;
+	top: 0px;
+
+	transition: 0.5s ease;
+}

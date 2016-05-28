@@ -12,63 +12,6 @@
 		<script type="text/javascript" src="js/libraries/stats.min.js"></script>
 
 		<script type="text/javascript" src="js/main.js"></script>
-
-		<style>	
-			#progressModal {
-				width: 500px;
-				position: absolute;
-				left: 50%;
-				top: 50%;
-				transform: translate(-50%, -50%);
-				padding: 3px;
-				border-radius: 5px;
-				background-color: #333;
-				min-height: 45px;
-
-				color: white;
-				font-family: sans-serif;
-				font-weight: bold;
-			}
-
-			#progressModal #name {
-				text-align: center;
-				display: block;
-
-				text-transform: capitalize;
-			}
-
-			.progressBar {
-				height: 30px;
-				background-color: #333;
-				text-align: center;
-				position: relative;
-				border: 3px solid #333;
-			}
-
-			.progressBar #label:after {
-				content: attr(data-perc);
-				display: block;
-
-				font-size: 1.5em;
-				font-weight: bold;
-				width: 100%;
-
-				position: absolute;
-				z-index: 10;
-			}
-
-			.progressBar #bar {
-				background-color: #2FA1D6;
-
-				width: 0%;
-				height: 100%;
-				display: block;
-				position: absolute;
-				top: 0px;
-
-				transition: 0.5s ease;
-			}
-		</style>
 	</head>
 	<body>
 		<div id="progressModal">
