@@ -126,8 +126,11 @@ var guiController = new function() {
 var progressModal;
 var frameLabel;
 
+/*===================
+   Onload
+  ===================*/
 window.onload = function() {
-	// Set the progress modal
+	// Define the progress modal
 	progressModal = document.getElementById("progressModal");
 	frameLabel = document.getElementById("name");
 
@@ -197,12 +200,14 @@ function extractFrames(src, mask, frameType, fps, callback, resolution) {
 
 	var i = 0;
 
+	// Create a video element
 	video = document.createElement('video');
 	var canvasFrames = [];
 	var width = 0;
 	var height = 0;
 	var duration = 0;
 
+	// Load in the video, get width, height, and duration
 	video.addEventListener('loadedmetadata', function() {
 		if (resolution == null) {
 			width = this.videoWidth;
@@ -216,6 +221,7 @@ function extractFrames(src, mask, frameType, fps, callback, resolution) {
 		duration = video.duration;
 	}, false);
 
+	// Update the modal with starting information
 	frameLabel.innerHTML = frameType.slice(0,-6);
 	var progressBar = document.createElement('div');
 	progressBar.id = frameType;
@@ -233,16 +239,19 @@ function extractFrames(src, mask, frameType, fps, callback, resolution) {
 
 	progressModal.appendChild(progressBar);
 
+	// Set the video element to the proper video
 	video.src = src;
 
+	// Handle frame splitting while iterating through video
 	video.addEventListener('seeked', function() {
 		// Generate canvas drawing
 		var tempCanvas = document.createElement('canvas');
 		tempCanvas.width = width;
 		tempCanvas.height = height;
 		var tempCTX = tempCanvas.getContext('2d');
+		// Draw image
 		tempCTX.drawImage(this, 0, 0, width, height);
-		tempCTX.drawImage(this, 0, 0, width, height);
+		// Optionally mask it
 		if (mask != null) {
 			tempCTX.globalCompositeOperation = "destination-out";
 			tempCTX.drawImage(mask, 0, 0, width, height);
@@ -269,17 +278,19 @@ function extractFrames(src, mask, frameType, fps, callback, resolution) {
 		i += 1/fps;
 
 		if (i <= this.duration) {
+			// Update video location, and loading bar
 			video.currentTime = i;
 
 			progressBackground.style.width = (i/duration * 100).toFixed(2) + "%";
 			progressLabel.setAttribute("data-perc", (i/duration * 100).toFixed(2) + "%");
 		} else {
+			// Finish the loading frames, and store them in dictionary
 			progressBackground.style.width = "100%";
 			progressLabel.setAttribute("data-perc", "100%");
 
 			overlayFrames[frameType] = canvasFrames;
 
-			// Remove it
+			// Remove the modal
 			progressModal.removeChild(progressBar);
 
 			if (callback != null)
