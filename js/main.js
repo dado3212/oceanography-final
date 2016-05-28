@@ -117,13 +117,20 @@ stats.showPanel(0);
   ===================*/
 // Set up GUI controls
 var guiController = new function() {
-	this.overlay = "currents";
+	this.overlay = "salinity";
 	this.overlayOpacity = 0.5;
 
 	this.rotateEarth = true;
 }();
 
+var progressModal;
+var frameLabel;
+
 window.onload = function() {
+	// Set the progress modal
+	progressModal = document.getElementById("progressModal");
+	frameLabel = document.getElementById("name");
+
 	// Append renderer element
 	document.body.appendChild(renderer.domElement);
 
@@ -141,14 +148,18 @@ window.onload = function() {
 	// Hacked together sequential loading using callbacks
 	extractFrames("assets/videos/currents.mp4", currentsMask, "currentsFrames", 1, function() {
 		extractFrames("assets/videos/surfaceflow.mp4", surfaceflowmask, "surfaceflowFrames", 1, function() {
-			extractFrames("assets/videos/salinity.mp4", surfaceflowmask, "salinityFrames", 1);
+			extractFrames("assets/videos/velocity.mp4", surfaceflowmask, "velocityFrames", 1/3, function() {
+				extractFrames("assets/videos/salinity.mp4", surfaceflowmask, "salinityFrames", 1, function() {
+					progressModal.style.display = 'none';
+				});
+			});
 		});
 	}, [2048, 1024]);
 
 	var gui = new dat.GUI();
 
 	// Add all options for overlay
-	gui.add(guiController, 'overlay', ['currents', 'surfaceflow', 'salinity', 'tectonics']).onChange(function() {
+	gui.add(guiController, 'overlay', ['currents', 'surfaceflow', 'velocity', 'salinity', 'tectonics']).onChange(function() {
 		activeOverlay = guiController.overlay + "Frames";
 		frame = 0;
 	});
@@ -168,6 +179,7 @@ window.onload = function() {
 var overlayFrames = {
 	currentsFrames: [],
 	surfaceflowFrames: [],
+	velocityFrames: [],
 	salinityFrames: [],
 	tectonicsFrames: [tectonics]
 };
@@ -189,8 +201,7 @@ function extractFrames(src, mask, frameType, fps, callback, resolution) {
 	var canvasFrames = [];
 	var width = 0;
 	var height = 0;
-
-	console.log("Extracting frames.");
+	var duration = 0;
 
 	video.addEventListener('loadedmetadata', function() {
 		if (resolution == null) {
@@ -202,9 +213,25 @@ function extractFrames(src, mask, frameType, fps, callback, resolution) {
 		}
 
 		video.currentTime = i;
-
-		console.log(frameType + ": " + video.duration);
+		duration = video.duration;
 	}, false);
+
+	frameLabel.innerHTML = frameType.slice(0,-6);
+	var progressBar = document.createElement('div');
+	progressBar.id = frameType;
+	progressBar.className = 'progressBar';
+
+	var progressLabel = document.createElement('span');
+	progressLabel.id = 'label';
+	progressLabel.setAttribute("data-perc", "Preparing frames...");
+
+	var progressBackground = document.createElement('span');
+	progressBackground.id = 'bar';
+
+	progressBar.appendChild(progressLabel);
+	progressBar.appendChild(progressBackground);
+
+	progressModal.appendChild(progressBar);
 
 	video.src = src;
 
@@ -238,13 +265,23 @@ function extractFrames(src, mask, frameType, fps, callback, resolution) {
 		// Add pre-rendered texture to array
 		canvasFrames.push(tempTexture);
 
+		// Update progress
 		i += 1/fps;
-		console.log(frameType + ": " + i);
+
 		if (i <= this.duration) {
 			video.currentTime = i;
+
+			progressBackground.style.width = (i/duration * 100).toFixed(2) + "%";
+			progressLabel.setAttribute("data-perc", (i/duration * 100).toFixed(2) + "%");
 		} else {
+			progressBackground.style.width = "100%";
+			progressLabel.setAttribute("data-perc", "100%");
+
 			overlayFrames[frameType] = canvasFrames;
-			console.log("Finished");
+
+			// Remove it
+			progressModal.removeChild(progressBar);
+
 			if (callback != null)
 				callback();
 		}
