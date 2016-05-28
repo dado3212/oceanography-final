@@ -38,6 +38,8 @@ var bump_map = loader.load("assets/earth/bump.png");
 var specular_map = loader.load("assets/earth/specular.png");
 var star_field = loader.load("assets/earth/star_field.png");
 
+var tectonics = loader.load("assets/videos/tectonics.jpg");
+
 /*===================
    Earth
   ===================*/
@@ -139,15 +141,16 @@ window.onload = function() {
 	// Hacked together sequential loading using callbacks
 	extractFrames("assets/videos/currents.mp4", currentsMask, "currentsFrames", 1, function() {
 		extractFrames("assets/videos/surfaceflow.mp4", surfaceflowmask, "surfaceflowFrames", 1, function() {
-			extractFrames("assets/videos/salinity.mp4", null, "salinityFrames", 1);
+			extractFrames("assets/videos/salinity.mp4", surfaceflowmask, "salinityFrames", 1);
 		});
 	}, [2048, 1024]);
 
 	var gui = new dat.GUI();
 
 	// Add all options for overlay
-	gui.add(guiController, 'overlay', ['currents', 'surfaceflow', 'salinity']).onChange(function() {
+	gui.add(guiController, 'overlay', ['currents', 'surfaceflow', 'salinity', 'tectonics']).onChange(function() {
 		activeOverlay = guiController.overlay + "Frames";
+		frame = 0;
 	});
 
 	gui.add(guiController, 'overlayOpacity', 0.0, 0.6).onChange(function() {
@@ -165,10 +168,11 @@ window.onload = function() {
 var overlayFrames = {
 	currentsFrames: [],
 	surfaceflowFrames: [],
-	salinityFrames: []
+	salinityFrames: [],
+	tectonicsFrames: [tectonics]
 };
 
-var activeOverlay = "currentsFrames";
+var activeOverlay = "salinityFrames";
 var rotating = true;
 
 /*===================
